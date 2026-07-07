@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: '/Sotto_i_Portici/'
+  base: '/Sotto_i_Portici/',
   root: '.',
   publicDir: 'public',
   server: {
