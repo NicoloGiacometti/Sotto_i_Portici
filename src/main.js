@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { InteractionSystem } from './engine/InteractionSystem.js';
 import { SceneManager } from './engine/SceneManager.js';
+import { createHandsViewModel } from './engine/viewModel.js';
+import { asset } from './engine/assetPath.js';
 import {
   applyStageToScene,
   createVignetteOverlay,
@@ -19,11 +21,13 @@ import { initHUD } from './ui/hud.js';
 import { initMemoryModal } from './ui/memoryModal.js';
 import { initStartScreen } from './ui/startScreen.js';
 import { initPauseMenu } from './ui/pauseMenu.js';
+import { initEndingSequence } from './ui/endingSequence.js';
 import { getMouseSensitivity } from './game/settings.js';
 
 initHUD();
 const memoryModal = initMemoryModal();
 initPauseMenu();
+const endingSequence = initEndingSequence();
 injectGlitchStyles();
 
 // --- Renderer -------------------------------------------------------------
@@ -43,6 +47,7 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   100
 );
+createHandsViewModel(camera, asset('assets/sprites/characters/michela_mani_idle.png'));
 
 // --- Lights -----------------------------------------------------------------
 const ambientLight = new THREE.AmbientLight(0xfff1e0, 0.6);
@@ -65,6 +70,13 @@ function updateStageVisuals(stage) {
 }
 
 on('depth-changed', ({ stage }) => updateStageVisuals(stage));
+
+// --- Ending: stop the game and play the closing sequence when triggered -----
+let gameEnded = false;
+on('ending-triggered', () => {
+  gameEnded = true;
+  endingSequence.trigger();
+});
 
 // --- Scene manager: builds/tears down room content, places the camera -------
 const sceneManager = new SceneManager({ scene, camera });
@@ -168,6 +180,11 @@ const walkSpeed = 3.2; // meters/second
 function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
+
+  if (gameEnded) {
+    renderer.render(scene, camera); // keep the last frame visible under the overlay
+    return;
+  }
 
   camera.rotation.order = 'YXZ';
   camera.rotation.y = yaw;

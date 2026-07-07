@@ -175,10 +175,7 @@ export const ROOMS = {
         memoryId: 'diario_alternativo',
         label: "L'asse del pavimento sollevata",
         position: [0, 0.3, -1.8],
-        // No spritePath yet — diario_alternativo.png is missing from
-        // public/assets/sprites/objects/. Falls back to the placeholder
-        // sphere marker automatically; add spritePath here once the PNG
-        // exists, no other code changes needed.
+        spritePath: asset('assets/sprites/objects/diario_alternativo.png'),
         // Only examinable once `lettera_dottore` has been read — enforced
         // by main.js's 'interact' handler via state.isMemoryCollected().
         requiresMemory: 'lettera_dottore',
