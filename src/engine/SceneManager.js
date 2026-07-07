@@ -3,7 +3,7 @@ import { SpriteBillboard } from './SpriteBillboard.js';
 import { createHotspotVisual, createExitMarker } from './InteractionSystem.js';
 import { makePlaceholderTexture } from './placeholderTexture.js';
 import { getRoom } from '../game/rooms.js';
-import { isRoomUnlocked } from '../game/state.js';
+import { isRoomUnlocked, hasItem } from '../game/state.js';
 
 /**
  * SceneManager — builds the 3D content for whichever room is currently
@@ -86,8 +86,26 @@ export class SceneManager {
     this._addTracked(floor);
   }
 
+  /**
+   * Rimuove un singolo hotspot dalla scena senza ricaricare la stanza
+   * (che riposizionerebbe la camera). Usato quando il giocatore raccoglie
+   * un oggetto (itemId): il marker sparisce sul posto.
+   */
+  removeHotspot(hotspotId) {
+    const index = this._hotspotMarkers.findIndex(
+      (marker) => marker.userData.id === hotspotId
+    );
+    if (index === -1) return;
+    const [marker] = this._hotspotMarkers.splice(index, 1);
+    this.scene.remove(marker);
+  }
+
   _buildHotspots(room) {
-    this._hotspotMarkers = room.hotspots.map((hotspotData) => {
+    // Gli oggetti raccoglibili (itemId) spariscono dalla stanza una volta presi.
+    const visibleHotspots = room.hotspots.filter(
+      (h) => !h.itemId || !hasItem(h.itemId)
+    );
+    this._hotspotMarkers = visibleHotspots.map((hotspotData) => {
       const { object3D, billboard } = createHotspotVisual(hotspotData);
       this._addTracked(object3D);
       if (billboard) this._billboards.push(billboard);

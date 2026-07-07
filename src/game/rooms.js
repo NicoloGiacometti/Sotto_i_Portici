@@ -45,6 +45,9 @@ export const ROOMS = {
         label: 'La sfoglina, fuori posto',
         position: [-2, 1, 2.5],
         spritePath: asset('assets/sprites/objects/sfoglina.png'),
+        // Àncora di lucidità: dopo aver raccolto il ricordo, riesaminarla
+        // ripristina la lucidità e scaccia l'Altra (vedi docs/gameplay.md).
+        anchor: true,
       },
     ],
     npcs: [],
@@ -73,6 +76,9 @@ export const ROOMS = {
         label: 'La videocassetta "Festa 12/7"',
         position: [-1.5, 1, -1.5],
         spritePath: asset('assets/sprites/objects/videocassetta.png'),
+        // Il televisore è rotto: serve la valvola trovata in salotto.
+        requiresItem: 'valvola',
+        lockedPrompt: 'il televisore è morto. Serve una valvola.',
       },
     ],
     npcs: [
@@ -136,6 +142,16 @@ export const ROOMS = {
         position: [2, 1, -1],
         spritePath: asset('assets/sprites/objects/radio_lucio_dalla.png'),
       },
+      {
+        // Oggetto raccoglibile (itemId, niente memoryId): la valvola che
+        // ripara il televisore della cucina. Non ha ancora uno sprite
+        // dedicato — usa il marker placeholder pulsante.
+        id: 'valvola_scatola',
+        itemId: 'valvola',
+        label: 'La scatola dei fusibili',
+        position: [2.8, 1, 2.2],
+        pickupText: 'Una vecchia valvola di ricambio, avvolta nel giornale. La nonna non buttava niente.',
+      },
     ],
     npcs: [
       {
@@ -175,10 +191,15 @@ export const ROOMS = {
         memoryId: 'diario_alternativo',
         label: "L'asse del pavimento sollevata",
         position: [0, 0.3, -1.8],
-        spritePath: asset('assets/sprites/objects/diario_alternativo.png'),
+        // NB: il file in public/ si chiama davvero "diario_alternativo.png.png".
+        spritePath: asset('assets/sprites/objects/diario_alternativo.png.png'),
         // Only examinable once `lettera_dottore` has been read — enforced
         // by main.js's 'interact' handler via state.isMemoryCollected().
         requiresMemory: 'lettera_dottore',
+        // Chiuso da un lucchetto a combinazione: tre cifre, la data che il
+        // giocatore ha già incontrato tre volte (12/7 → 127). Vedi
+        // ui/keypadModal.js.
+        keypad: true,
       },
     ],
     npcs: [],
@@ -191,7 +212,15 @@ export const ROOMS = {
     unlock: { minDepth: 6, requiresMemories: [] },
     exits: [
       { to: 'portico', label: 'Torna al portico', position: [0, 0, 2.8] },
-      { to: 'il_reno', label: 'Esci verso il Reno', position: [0, 0, -2.8] },
+      {
+        to: 'il_reno',
+        label: 'Esci verso il Reno',
+        position: [0, 0, -2.8],
+        // Oltre allo sblocco per profondità, la porta sul retro è sbarrata:
+        // serve la chiave nascosta dietro lo specchio incrinato.
+        requiresItem: 'chiave',
+        lockedPrompt: 'la porta sul retro è sbarrata. Serve una chiave.',
+      },
     ],
     hotspots: [
       {
@@ -207,6 +236,9 @@ export const ROOMS = {
         label: 'Lo specchio incrinato',
         position: [2.5, 1.5, -1.5],
         spritePath: asset('assets/sprites/objects/specchio_incrinato.png'),
+        // Riesaminandolo dopo averne letto il ricordo: la chiave della
+        // porta sul retro, appesa a un chiodo dietro la cornice.
+        givesItem: 'chiave',
       },
     ],
     npcs: [],

@@ -39,13 +39,21 @@ const state = {
   // single source of truth for which rooms start open vs. gated.
   unlockedRooms: new Set(getInitiallyUnlockedRoomIds()),
   hasEnded: false,
+
+  // --- Sistemi di gameplay (vedi docs/gameplay.md) ---
+  items: new Set(), // oggetti raccolti (valvola, chiave) — vedi game/items.js
+  lucidity: 100, // 0-100: a 0 scatta l'"assenza"
+  corruptedMemories: new Set(), // ricordi confusi da un'assenza (rileggerli li ripara)
+  chaseActive: false, // true dopo l'ultimo ricordo: inseguimento verso l'osteria
 };
 
 // --- Pub/sub -------------------------------------------------------------------
 // Minimal event emitter so UI modules (HUD, memory modal, room renderer)
 // can react to state changes without polling or importing each other.
 // Event names used: 'depth-changed', 'memory-collected', 'room-unlocked',
-// 'room-changed', 'ending-triggered', 'reset'.
+// 'room-changed', 'ending-triggered', 'reset', 'item-collected',
+// 'lucidity-changed', 'memory-corrupted', 'memory-restored',
+// 'chase-started', 'absence'.
 
 const listeners = new Map(); // eventName -> Set<callback>
 
@@ -84,6 +92,30 @@ export function hasEnded() {
   return state.hasEnded;
 }
 
+export function hasItem(itemId) {
+  return state.items.has(itemId);
+}
+
+export function getItems() {
+  return [...state.items];
+}
+
+export function getLucidity() {
+  return state.lucidity;
+}
+
+export function isMemoryCorrupted(memoryId) {
+  return state.corruptedMemories.has(memoryId);
+}
+
+export function getCorruptedMemoryIds() {
+  return [...state.corruptedMemories];
+}
+
+export function isChaseActive() {
+  return state.chaseActive;
+}
+
 /** Returns 0-3, matching the narrative stage table in docs/narrative.md. */
 export function getStage() {
   return STAGE_THRESHOLDS.findIndex((max) => state.depth <= max);
@@ -97,6 +129,10 @@ export function getSnapshot() {
     collectedMemories: [...state.collectedMemories],
     unlockedRooms: [...state.unlockedRooms],
     hasEnded: state.hasEnded,
+    items: [...state.items],
+    lucidity: state.lucidity,
+    corruptedMemories: [...state.corruptedMemories],
+    chaseActive: state.chaseActive,
   };
 }
 
@@ -124,9 +160,12 @@ export function collectMemory(memoryId) {
 
   checkUnlocks();
 
-  if (memoryId === ENDING_MEMORY_ID && !state.hasEnded) {
-    state.hasEnded = true;
-    emit('ending-triggered', null);
+  if (memoryId === ENDING_MEMORY_ID && !state.chaseActive && !state.hasEnded) {
+    // Il finale non parte più subito: prima c'è l'inseguimento — la fuga
+    // dall'argine fino allo specchio dell'osteria. L'ending vero e proprio
+    // scatta in moveToRoom() quando il giocatore raggiunge l'osteria.
+    state.chaseActive = true;
+    emit('chase-started', null);
   }
 }
 
@@ -138,6 +177,12 @@ export function moveToRoom(roomId) {
   }
   state.currentRoom = roomId;
   emit('room-changed', { roomId });
+
+  // Fine dell'inseguimento: raggiungere l'osteria (lo specchio) chiude il gioco.
+  if (state.chaseActive && roomId === 'osteria' && !state.hasEnded) {
+    state.hasEnded = true;
+    emit('ending-triggered', null);
+  }
   return true;
 }
 
@@ -162,6 +207,64 @@ export function checkUnlocks() {
   }
 }
 
+/** Call when the player picks up an item hotspot (kind: itemId in rooms.js). */
+export function collectItem(itemId) {
+  if (state.items.has(itemId)) return;
+  state.items.add(itemId);
+  emit('item-collected', { itemId });
+}
+
+function setLucidity(value) {
+  const clamped = Math.max(0, Math.min(100, value));
+  if (clamped === state.lucidity) return;
+  state.lucidity = clamped;
+  emit('lucidity-changed', { lucidity: clamped });
+}
+
+export function drainLucidity(amount) {
+  setLucidity(state.lucidity - amount);
+}
+
+/** Senza argomento ripristina tutto (la sfoglina); con un numero, rigenera. */
+export function restoreLucidity(amount = 100) {
+  setLucidity(state.lucidity + amount);
+}
+
+/** Un ricordo confuso torna integro (dopo che il giocatore lo rilegge). */
+export function restoreMemory(memoryId) {
+  if (state.corruptedMemories.delete(memoryId)) {
+    emit('memory-restored', { memoryId });
+  }
+}
+
+/**
+ * L'"assenza": il blackout dissociativo che scatta quando l'Altra tocca
+ * Michela o la lucidità arriva a zero. Confonde un ricordo raccolto a
+ * caso (mai quello finale), riporta il giocatore al portico e lascia la
+ * lucidità a metà. Ritorna l'id del ricordo confuso (o null).
+ * Il fade a nero e il ricaricamento della stanza sono di main.js.
+ */
+export function triggerAbsence() {
+  const pool = [...state.collectedMemories].filter(
+    (id) => id !== ENDING_MEMORY_ID && !state.corruptedMemories.has(id)
+  );
+  let corruptedId = null;
+  if (pool.length > 0) {
+    corruptedId = pool[Math.floor(Math.random() * pool.length)];
+    state.corruptedMemories.add(corruptedId);
+    emit('memory-corrupted', { memoryId: corruptedId });
+  }
+
+  state.lucidity = 55;
+  emit('lucidity-changed', { lucidity: 55 });
+
+  state.currentRoom = 'portico';
+  emit('room-changed', { roomId: 'portico' });
+
+  emit('absence', { memoryId: corruptedId });
+  return corruptedId;
+}
+
 /** Resets everything to the initial state (for the "Ricomincia" button). */
 export function resetGame() {
   state.currentRoom = 'portico';
@@ -169,5 +272,9 @@ export function resetGame() {
   state.collectedMemories.clear();
   state.unlockedRooms = new Set(getInitiallyUnlockedRoomIds());
   state.hasEnded = false;
+  state.items.clear();
+  state.lucidity = 100;
+  state.corruptedMemories.clear();
+  state.chaseActive = false;
   emit('reset', null);
 }

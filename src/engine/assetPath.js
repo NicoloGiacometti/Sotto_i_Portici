@@ -14,7 +14,15 @@
  * (leading slash optional — it's stripped automatically either way)
  */
 export function asset(path) {
-  const base = import.meta.env.BASE_URL; // e.g. '/' or '/Sotto_i_Portici/'
+  // import.meta.env esiste solo sotto Vite; il try/catch permette allo
+  // stesso codice di girare anche in un browser "nudo" (es. preview.html
+  // con un importmap), dove la base relativa './' funziona.
+  let base = './';
+  try {
+    base = import.meta.env.BASE_URL ?? './'; // e.g. '/' or '/Sotto_i_Portici/'
+  } catch {
+    /* non stiamo girando sotto Vite */
+  }
   const cleanPath = path.replace(/^\/+/, '');
   return base + cleanPath;
 }

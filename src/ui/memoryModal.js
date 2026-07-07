@@ -1,5 +1,5 @@
 import { getMemory } from '../game/memories.js';
-import { getStage } from '../game/state.js';
+import { getStage, isMemoryCorrupted, restoreMemory } from '../game/state.js';
 import { injectGlitchStyles } from '../engine/corruption.js';
 
 /**
@@ -54,9 +54,16 @@ export function initMemoryModal() {
   overlay.appendChild(card);
   document.body.appendChild(overlay);
 
+  let onCloseCallback = null;
+  let restoreTimeout = null;
+
   function close() {
     overlay.style.display = 'none';
     document.removeEventListener('keydown', onKeyDown);
+    clearTimeout(restoreTimeout);
+    const cb = onCloseCallback;
+    onCloseCallback = null;
+    if (cb) cb();
   }
 
   function onKeyDown(e) {
@@ -66,9 +73,25 @@ export function initMemoryModal() {
   overlay.addEventListener('click', close);
   card.addEventListener('click', (e) => e.stopPropagation()); // don't close on card click
 
-  function show(memoryId) {
+  // Rende un testo illeggibile (ricordo "confuso" da un'assenza):
+  // sostituisce parte dei caratteri con rumore. Rileggere il ricordo lo
+  // ripara — dopo un attimo si ricompone davanti agli occhi del giocatore.
+  function scramble(text) {
+    const glyphs = '▓▒░#%&@';
+    return text
+      .split('')
+      .map((ch) =>
+        /\S/.test(ch) && Math.random() < 0.45
+          ? glyphs[Math.floor(Math.random() * glyphs.length)]
+          : ch
+      )
+      .join('');
+  }
+
+  function show(memoryId, { onClose } = {}) {
     const memory = getMemory(memoryId);
     if (!memory) return;
+    onCloseCallback = onClose ?? null;
 
     // Exit pointer lock while reading — otherwise the mouse cursor stays
     // hidden and the player can't click the close hint or see what's
@@ -76,13 +99,25 @@ export function initMemoryModal() {
     if (document.pointerLockElement) document.exitPointerLock();
 
     titleEl.textContent = memory.label;
-    textEl.textContent = memory.text;
-    // Late-stage memories read as more fractured — same glitch class the
-    // prompt uses, shared via engine/corruption.js so both jitter identically.
-    textEl.classList.toggle('glitch-text', getStage() >= 3);
+    if (isMemoryCorrupted(memoryId)) {
+      // Ricordo confuso da un'assenza: appare come rumore, poi si
+      // ricompone da solo (e da quel momento torna integro).
+      textEl.textContent = scramble(memory.text);
+      textEl.classList.add('glitch-text');
+      restoreTimeout = setTimeout(() => {
+        restoreMemory(memoryId);
+        textEl.textContent = memory.text;
+        textEl.classList.toggle('glitch-text', getStage() >= 3);
+      }, 1600);
+    } else {
+      textEl.textContent = memory.text;
+      // Late-stage memories read as more fractured — same glitch class the
+      // prompt uses, shared via engine/corruption.js so both jitter identically.
+      textEl.classList.toggle('glitch-text', getStage() >= 3);
+    }
     overlay.style.display = 'flex';
     document.addEventListener('keydown', onKeyDown);
   }
 
-  return { show, close };
+  return { show, close, isOpen: () => overlay.style.display === 'flex' };
 }

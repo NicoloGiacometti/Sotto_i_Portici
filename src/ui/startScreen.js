@@ -102,7 +102,7 @@ export function initStartScreen({ onStart }) {
   });
 
   const controlsReminder = document.createElement('p');
-  controlsReminder.innerHTML = `WASD per muoverti &middot; mouse per guardarti intorno &middot; [E] per esaminare`;
+  controlsReminder.innerHTML = `WASD per muoverti &middot; Shift per correre &middot; mouse per guardarti intorno<br>[E] per esaminare &middot; [M] per l'audio`;
   controlsReminder.style.cssText = `
     font-size: 0.75rem; opacity: 0.5; margin-top: 18px; text-align: center;
   `;
@@ -122,8 +122,16 @@ export function initStartScreen({ onStart }) {
     onStart();
   });
 
+  // Avvertenza di gameplay: la casa non è più soltanto da esplorare.
+  const warningEl = document.createElement('p');
+  warningEl.textContent = `Più scavi, meno la casa resta soltanto una casa. Se qualcosa ti si avvicina, guardala: si ferma — ma guardarla costa. Se la lucidità si esaurisce, arriva l'assenza. La sfoglina della nonna ti riporta in te.`;
+  warningEl.style.cssText = `
+    font-size: 0.82rem; line-height: 1.6; opacity: 0.6; margin: 0 0 32px;
+  `;
+
   card.appendChild(titleEl);
   card.appendChild(incipitEl);
+  card.appendChild(warningEl);
   card.appendChild(startButton);
   card.appendChild(settingsToggle);
   card.appendChild(settingsPanel);

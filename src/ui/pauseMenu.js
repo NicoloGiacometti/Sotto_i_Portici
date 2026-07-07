@@ -131,4 +131,8 @@ export function initPauseMenu() {
   card.appendChild(closeButton);
   overlay.appendChild(card);
   document.body.appendChild(overlay);
+
+  // main.js congela i sistemi di minaccia (l'Altra, il drenaggio di
+  // lucidità) mentre il menu è aperto — serve sapere se lo è.
+  return { isOpen: () => overlay.style.display === 'flex' };
 }
