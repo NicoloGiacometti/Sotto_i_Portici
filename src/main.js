@@ -17,9 +17,13 @@ import {
 } from './game/state.js';
 import { initHUD } from './ui/hud.js';
 import { initMemoryModal } from './ui/memoryModal.js';
+import { initStartScreen } from './ui/startScreen.js';
+import { initPauseMenu } from './ui/pauseMenu.js';
+import { getMouseSensitivity } from './game/settings.js';
 
 initHUD();
 const memoryModal = initMemoryModal();
+initPauseMenu();
 injectGlitchStyles();
 
 // --- Renderer -------------------------------------------------------------
@@ -144,7 +148,7 @@ renderer.domElement.addEventListener('click', () => {
 
 document.addEventListener('mousemove', (e) => {
   if (document.pointerLockElement !== renderer.domElement) return;
-  const sensitivity = 0.0022;
+  const sensitivity = getMouseSensitivity();
   yaw -= e.movementX * sensitivity;
   pitch -= e.movementY * sensitivity;
   pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, pitch));
@@ -194,6 +198,13 @@ function animate() {
   velocity.addScaledVector(right, inputRight * walkSpeed * dt);
   camera.position.add(velocity);
 
+  // Clamp inside the current room's floor so the player can't walk off
+  // the edge into empty space — room-relative bounds come from
+  // SceneManager, which knows the active room's floorSize.
+  const bounds = sceneManager.getMovementBounds();
+  camera.position.x = Math.max(-bounds.maxX, Math.min(bounds.maxX, camera.position.x));
+  camera.position.z = Math.max(-bounds.maxZ, Math.min(bounds.maxZ, camera.position.z));
+
   sceneManager.update();
   interaction.update();
 
@@ -201,3 +212,12 @@ function animate() {
 }
 
 animate();
+
+// The start screen sits on top of everything (highest z-index) until the
+// player clicks "Inizia" — the scene/camera/HUD are already built and
+// rendering behind it by this point, so there's no loading gap once it's
+// dismissed. animate() is called above unconditionally because pausing
+// the render loop isn't necessary here (nothing moves without WASD/mouse
+// input, and pointer lock can't engage until the player clicks the canvas
+// anyway — which only becomes possible once the overlay is gone).
+initStartScreen({ onStart: () => {} });

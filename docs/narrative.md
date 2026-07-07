@@ -5,6 +5,19 @@ non devi toccare `rooms.js` — solo verificare che gli `id` combacino.
 
 ---
 
+## Incipit (schermata iniziale)
+
+Testo mostrato prima di "Inizia", tono sospeso e dimesso, non horror
+esplicito — il disagio arriva dopo, con l'esplorazione.
+
+> Sei tornata a Bologna per sistemare la casa. Lo dici così da settimane,
+> anche a te stessa. La nonna Ines ti ha lasciato le chiavi senza dire
+> una parola, come se sapesse che avresti dovuto scoprirlo da sola —
+> qualunque cosa "lo" sia. Sotto il portico, l'aria di luglio pesa
+> uguale a ventitré anni fa.
+
+---
+
 ## Personaggi
 
 - **Michela** (protagonista, 34 anni) — tornata a Bologna dopo anni a

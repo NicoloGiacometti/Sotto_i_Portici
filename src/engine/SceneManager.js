@@ -29,6 +29,7 @@ export class SceneManager {
     this.scene = scene;
     this.camera = camera;
     this.currentRoomId = null;
+    this.currentFloorSize = null; // { width, depth } of the active room
 
     this._trackedObjects = []; // everything added this room, for cleanup
     this._billboards = []; // SpriteBillboard instances needing per-frame update
@@ -43,12 +44,27 @@ export class SceneManager {
 
     this._clearCurrentRoom();
     this.currentRoomId = roomId;
+    this.currentFloorSize = room.floorSize;
 
     this._buildFloor(room);
     this._buildHotspots(room);
     this._buildExits(room);
     this._buildNPCs(room);
     this._placeCamera(room);
+  }
+
+  /**
+   * Returns how far the player can walk from room center before hitting
+   * a wall, in each axis — half the floor size minus a small margin so
+   * the camera doesn't clip through a wall plane visually. Used by
+   * main.js to clamp camera position every frame.
+   */
+  getMovementBounds(margin = 0.4) {
+    if (!this.currentFloorSize) return { maxX: 0, maxZ: 0 };
+    return {
+      maxX: this.currentFloorSize.width / 2 - margin,
+      maxZ: this.currentFloorSize.depth / 2 - margin,
+    };
   }
 
   /** Combined hotspot + exit markers, ready to hand to InteractionSystem. */
