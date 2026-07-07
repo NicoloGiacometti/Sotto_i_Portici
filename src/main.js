@@ -1,8 +1,12 @@
 import * as THREE from 'three';
-import { SpriteBillboard } from './engine/SpriteBillboard.js';
-import { InteractionSystem, createHotspotMarker } from './engine/InteractionSystem.js';
-import { ROOMS } from './game/rooms.js';
-import { isMemoryCollected, collectMemory } from './game/state.js';
+import { InteractionSystem } from './engine/InteractionSystem.js';
+import { SceneManager } from './engine/SceneManager.js';
+import {
+  isMemoryCollected,
+  collectMemory,
+  moveToRoom,
+  getCurrentRoom,
+} from './game/state.js';
 import { initHUD } from './ui/hud.js';
 import { initMemoryModal } from './ui/memoryModal.js';
 
@@ -26,7 +30,6 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   100
 );
-camera.position.set(0, 1.7, 5); // ~1.7m = eye height
 
 // --- Lights -----------------------------------------------------------------
 scene.add(new THREE.AmbientLight(0xfff1e0, 0.6));
@@ -34,61 +37,16 @@ const sun = new THREE.DirectionalLight(0xffe9c7, 0.8);
 sun.position.set(3, 5, 2);
 scene.add(sun);
 
-// --- Floor (placeholder for the portico) ------------------------------------
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(40, 40),
-  new THREE.MeshStandardMaterial({ color: 0x4a3f33 })
-);
-floor.rotation.x = -Math.PI / 2;
-scene.add(floor);
+// --- Scene manager: builds/tears down room content, places the camera -------
+const sceneManager = new SceneManager({ scene, camera });
+sceneManager.loadRoom(getCurrentRoom()); // 'portico' at game start
 
-// --- Placeholder billboard sprite -------------------------------------------
-// Draws a simple labeled rectangle on a canvas and uses it as a texture,
-// so the billboard pipeline is provable before real sprite art exists.
-// Replace `texturePath` with a real PNG under /public/assets/sprites/... later.
-function makePlaceholderTexture(label, bg = '#7a2e2e') {
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 384;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-  ctx.lineWidth = 6;
-  ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '28px Georgia';
-  ctx.textAlign = 'center';
-  ctx.fillText(label, canvas.width / 2, canvas.height / 2);
-  return canvas.toDataURL();
-}
-
-const placeholderNPC = new SpriteBillboard({
-  texturePath: makePlaceholderTexture('Nonna Ines\n(placeholder)'),
-  width: 1.2,
-  height: 2.0,
-  mode: 'upright',
-});
-placeholderNPC.setPosition(0, 0, 0);
-scene.add(placeholderNPC.object);
-
-// Keep every billboard in one list so the render loop can update them all.
-const billboards = [placeholderNPC];
-
-// --- Hotspots for the current room (Portico, for now) ------------------------
-// Once SceneManager exists (later step) this loading-per-room logic moves
-// there; for now we just prove the pipeline works with a single room.
-const currentRoomData = ROOMS.portico;
-const hotspotMarkers = currentRoomData.hotspots.map((hotspotData) =>
-  createHotspotMarker(hotspotData)
-);
-for (const marker of hotspotMarkers) scene.add(marker);
-
+// --- Interaction: raycasts hotspots + exits, handles the [E] key -------------
 const interaction = new InteractionSystem({ camera, maxDistance: 4 });
-interaction.setHotspots(hotspotMarkers);
+interaction.setHotspots(sceneManager.getInteractables());
 
-// Simple temporary prompt element until ui/hud.js exists — shows what you're
-// looking at, and whether it's actually examinable right now.
+// Simple temporary prompt element until a dedicated ui component exists —
+// shows what you're looking at, and whether it's actually usable right now.
 const promptEl = document.createElement('div');
 promptEl.style.cssText = `
   position: fixed; left: 50%; bottom: 12%; transform: translateX(-50%);
@@ -98,24 +56,40 @@ promptEl.style.cssText = `
 `;
 document.body.appendChild(promptEl);
 
-interaction.on('focus-changed', (hotspot) => {
-  if (!hotspot) {
+interaction.on('focus-changed', (target) => {
+  if (!target) {
     promptEl.style.opacity = '0';
     return;
   }
-  const locked = hotspot.requiresMemory && !isMemoryCollected(hotspot.requiresMemory);
-  promptEl.textContent = locked
-    ? `${hotspot.label} — non sembra il momento giusto`
-    : `[E] ${hotspot.label}`;
+
+  if (target.kind === 'exit' && target.locked) {
+    promptEl.textContent = `${target.label} — è ancora chiuso`;
+  } else if (target.kind === 'hotspot' && target.requiresMemory && !isMemoryCollected(target.requiresMemory)) {
+    promptEl.textContent = `${target.label} — non sembra il momento giusto`;
+  } else {
+    promptEl.textContent = `[E] ${target.label}`;
+  }
   promptEl.style.opacity = '1';
 });
 
-interaction.on('interact', (hotspot) => {
-  const locked = hotspot.requiresMemory && !isMemoryCollected(hotspot.requiresMemory);
-  if (locked) return; // gated hotspot, not ready yet — no-op for now
+interaction.on('interact', (target) => {
+  if (target.kind === 'exit') {
+    if (target.locked) return; // no-op, prompt already told the player why
 
-  collectMemory(hotspot.memoryId);
-  memoryModal.show(hotspot.memoryId);
+    const moved = moveToRoom(target.to);
+    if (!moved) return; // shouldn't happen if .locked was accurate, but just in case
+
+    sceneManager.loadRoom(target.to);
+    interaction.setHotspots(sceneManager.getInteractables());
+    return;
+  }
+
+  // target.kind === 'hotspot'
+  const locked = target.requiresMemory && !isMemoryCollected(target.requiresMemory);
+  if (locked) return;
+
+  collectMemory(target.memoryId);
+  memoryModal.show(target.memoryId);
 });
 
 // --- First-person movement (WASD + pointer-lock mouse look) -----------------
@@ -181,7 +155,7 @@ function animate() {
 
   // Derive forward/right directly from the camera's actual world orientation
   // instead of hand-rolled trig, so the sign always matches what the camera
-  // is really looking at (this is what was inverted before).
+  // is really looking at.
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward);
   forward.y = 0;
@@ -193,7 +167,7 @@ function animate() {
   velocity.addScaledVector(right, inputRight * walkSpeed * dt);
   camera.position.add(velocity);
 
-  for (const b of billboards) b.update(camera);
+  sceneManager.update();
   interaction.update();
 
   renderer.render(scene, camera);

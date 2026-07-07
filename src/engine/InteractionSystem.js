@@ -97,28 +97,25 @@ export class InteractionSystem {
 }
 
 /**
- * Builds a small pulsing marker mesh for a hotspot, tagged with the data
- * needed by InteractionSystem and by whatever wires 'interact' events to
- * game logic (id, memoryId, label, requiresMemory).
- *
- * This is a placeholder visual — a soft glowing sphere — so hotspots are
- * clickable/lookable at before any real sprite art exists. Swap the
- * geometry/material later without touching the interaction logic above.
+ * Builds a small pulsing marker mesh, tagged with the data needed by
+ * InteractionSystem and by whatever wires 'interact' events to game logic.
+ * Shared by createHotspotMarker and createExitMarker below — they just
+ * pass different colors/radius/userData shape.
  */
-export function createHotspotMarker(hotspotData) {
-  const geometry = new THREE.SphereGeometry(0.12, 16, 16);
+function createMarker(position, userData, { color, emissive, radius = 0.12 }) {
+  const geometry = new THREE.SphereGeometry(radius, 16, 16);
   const material = new THREE.MeshStandardMaterial({
-    color: 0xffdca8,
-    emissive: 0xffb877,
+    color,
+    emissive,
     emissiveIntensity: 0.6,
     transparent: true,
     opacity: 0.85,
   });
   const marker = new THREE.Mesh(geometry, material);
-  marker.position.set(...hotspotData.position);
-  marker.userData = { ...hotspotData };
+  marker.position.set(...position);
+  marker.userData = userData;
 
-  // Gentle pulse so hotspots read as "interactive" at a glance without
+  // Gentle pulse so markers read as "interactive" at a glance without
   // needing real art yet. Driven by wall-clock time, no per-frame state
   // needed from the render loop.
   marker.onBeforeRender = () => {
@@ -128,4 +125,44 @@ export function createHotspotMarker(hotspotData) {
   };
 
   return marker;
+}
+
+/**
+ * Marker for a memory hotspot (an examinable object). Tagged
+ * `kind: 'hotspot'` so main.js's 'interact' handler knows to call
+ * collectMemory() + show the memory modal, not move rooms.
+ *
+ * This is a placeholder visual — a soft warm glowing sphere — so hotspots
+ * are clickable/lookable at before any real sprite art exists. Swap the
+ * geometry/material later without touching the interaction logic above.
+ */
+export function createHotspotMarker(hotspotData) {
+  return createMarker(
+    hotspotData.position,
+    { ...hotspotData, kind: 'hotspot' },
+    { color: 0xffdca8, emissive: 0xffb877, radius: 0.12 }
+  );
+}
+
+/**
+ * Marker for a room exit. Tagged `kind: 'exit'` so main.js's 'interact'
+ * handler knows to call moveToRoom() + reload the scene, not open a
+ * memory modal. Visually distinct (cool blue vs. warm amber) so players
+ * can tell hotspots and exits apart at a glance even before real art.
+ *
+ * rooms.js exits don't have an `id` field (they're identified by `to`),
+ * so one is synthesized here for InteractionSystem's focus-tracking.
+ */
+export function createExitMarker(exitData) {
+  const userData = {
+    id: `exit-${exitData.to}`,
+    label: exitData.label,
+    to: exitData.to,
+    kind: 'exit',
+  };
+  return createMarker(exitData.position, userData, {
+    color: 0x9fd8ff,
+    emissive: 0x6fb8e8,
+    radius: 0.18,
+  });
 }
