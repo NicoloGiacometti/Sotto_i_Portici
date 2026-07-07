@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SpriteBillboard } from './SpriteBillboard.js';
 
 /**
  * InteractionSystem — raycasts from the center of the screen (where the
@@ -142,6 +143,40 @@ export function createHotspotMarker(hotspotData) {
     { ...hotspotData, kind: 'hotspot' },
     { color: 0xffdca8, emissive: 0xffb877, radius: 0.12 }
   );
+}
+
+/**
+ * Builds the visual for a hotspot: a real sprite if `hotspotData.spritePath`
+ * is set, or the placeholder pulsing sphere (createHotspotMarker) as a
+ * fallback when the art doesn't exist yet. Either way, returns an object
+ * ready for both the scene graph and InteractionSystem's raycasting.
+ *
+ * Sprites use mode: 'upright' (billboards on the Y axis only, like NPCs) and
+ * are centered on `position` — not anchored at the feet — since hotspot
+ * positions in rooms.js were authored as the object's center point (roughly
+ * waist height), matching how the old sphere marker was placed.
+ *
+ * @returns {{ object3D: THREE.Object3D, billboard: SpriteBillboard|null }}
+ *   `billboard` is non-null only when a real sprite was created — the
+ *   caller (SceneManager) needs to call billboard.update(camera) every
+ *   frame for it to keep facing the player, same as NPCs.
+ */
+export function createHotspotVisual(hotspotData) {
+  if (!hotspotData.spritePath) {
+    return { object3D: createHotspotMarker(hotspotData), billboard: null };
+  }
+
+  const billboard = new SpriteBillboard({
+    texturePath: hotspotData.spritePath,
+    width: hotspotData.spriteWidth ?? 0.5,
+    height: hotspotData.spriteHeight ?? 0.5,
+    mode: 'upright',
+    anchorBottom: false, // position is the object's center, not its feet
+  });
+  billboard.setPosition(...hotspotData.position);
+  billboard.object.userData = { ...hotspotData, kind: 'hotspot' };
+
+  return { object3D: billboard.object, billboard };
 }
 
 /**

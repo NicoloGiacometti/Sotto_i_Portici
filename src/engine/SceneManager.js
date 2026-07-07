@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { SpriteBillboard } from './SpriteBillboard.js';
-import { createHotspotMarker, createExitMarker } from './InteractionSystem.js';
+import { createHotspotVisual, createExitMarker } from './InteractionSystem.js';
 import { makePlaceholderTexture } from './placeholderTexture.js';
 import { getRoom } from '../game/rooms.js';
 import { isRoomUnlocked } from '../game/state.js';
@@ -72,9 +72,10 @@ export class SceneManager {
 
   _buildHotspots(room) {
     this._hotspotMarkers = room.hotspots.map((hotspotData) => {
-      const marker = createHotspotMarker(hotspotData);
-      this._addTracked(marker);
-      return marker;
+      const { object3D, billboard } = createHotspotVisual(hotspotData);
+      this._addTracked(object3D);
+      if (billboard) this._billboards.push(billboard);
+      return object3D;
     });
   }
 
@@ -92,17 +93,22 @@ export class SceneManager {
   }
 
   _buildNPCs(room) {
-    this._billboards = room.npcs.map((npc) => {
-      const billboard = new SpriteBillboard({
-        texturePath: makePlaceholderTexture(npc.name),
-        width: 1.2,
-        height: 2.0,
-        mode: 'upright',
-      });
-      billboard.setPosition(...npc.position);
-      this._addTracked(billboard.object);
-      return billboard;
-    });
+    this._billboards.push(
+      ...room.npcs.map((npc) => {
+        const billboard = new SpriteBillboard({
+          // Falls back to a placeholder only if this NPC has no spritePath
+          // yet (shouldn't happen given rooms.js, but keeps things from
+          // silently failing if a new NPC is added without art).
+          texturePath: npc.spritePath ?? makePlaceholderTexture(npc.name),
+          width: 1.2,
+          height: 2.0,
+          mode: 'upright',
+        });
+        billboard.setPosition(...npc.position);
+        this._addTracked(billboard.object);
+        return billboard;
+      })
+    );
   }
 
   /** Places the camera roughly in the middle of the room, at eye height. */

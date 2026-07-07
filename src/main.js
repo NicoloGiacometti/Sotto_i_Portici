@@ -2,16 +2,25 @@ import * as THREE from 'three';
 import { InteractionSystem } from './engine/InteractionSystem.js';
 import { SceneManager } from './engine/SceneManager.js';
 import {
+  applyStageToScene,
+  createVignetteOverlay,
+  injectGlitchStyles,
+  STAGE_PALETTE,
+} from './engine/corruption.js';
+import {
   isMemoryCollected,
   collectMemory,
   moveToRoom,
   getCurrentRoom,
+  getStage,
+  on,
 } from './game/state.js';
 import { initHUD } from './ui/hud.js';
 import { initMemoryModal } from './ui/memoryModal.js';
 
 initHUD();
 const memoryModal = initMemoryModal();
+injectGlitchStyles();
 
 // --- Renderer -------------------------------------------------------------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -32,10 +41,26 @@ const camera = new THREE.PerspectiveCamera(
 );
 
 // --- Lights -----------------------------------------------------------------
-scene.add(new THREE.AmbientLight(0xfff1e0, 0.6));
+const ambientLight = new THREE.AmbientLight(0xfff1e0, 0.6);
+scene.add(ambientLight);
 const sun = new THREE.DirectionalLight(0xffe9c7, 0.8);
 sun.position.set(3, 5, 2);
 scene.add(sun);
+
+// --- Stage-based visual corruption (color, fog, vignette, glitch) -----------
+// Reacts to state.getStage() (0-3) — see docs/narrative.md for the tone
+// table this palette follows. Three.js-side properties (background/fog/
+// lights) are applied here; the glitch-text CSS class is toggled on
+// individual DOM elements (promptEl below, and inside memoryModal.js).
+const vignette = createVignetteOverlay();
+
+function updateStageVisuals(stage) {
+  applyStageToScene({ scene, ambientLight, sunLight: sun }, stage);
+  vignette.setStrength(STAGE_PALETTE[stage]?.vignette ?? 0);
+  promptEl.classList.toggle('glitch-text', stage >= 3);
+}
+
+on('depth-changed', ({ stage }) => updateStageVisuals(stage));
 
 // --- Scene manager: builds/tears down room content, places the camera -------
 const sceneManager = new SceneManager({ scene, camera });
@@ -55,6 +80,8 @@ promptEl.style.cssText = `
   opacity: 0; transition: opacity 0.15s ease; z-index: 10;
 `;
 document.body.appendChild(promptEl);
+
+updateStageVisuals(getStage()); // paint stage 0 immediately at game start
 
 interaction.on('focus-changed', (target) => {
   if (!target) {

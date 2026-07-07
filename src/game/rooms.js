@@ -35,12 +35,14 @@ export const ROOMS = {
         memoryId: 'swing_portico',
         label: "L'altalena arrugginita",
         position: [2, 1, 2],
+        spritePath: '/assets/sprites/objects/swing_portico.png',
       },
       {
         id: 'sfoglina_corridoio',
         memoryId: 'sfoglina_corridoio',
         label: 'La sfoglina, fuori posto',
         position: [-2, 1, 2.5],
+        spritePath: '/assets/sprites/objects/sfoglina.png',
       },
     ],
     npcs: [],
@@ -61,12 +63,14 @@ export const ROOMS = {
         memoryId: 'foglio_ricetta',
         label: 'Il foglio con la ricetta',
         position: [1, 1, 1.5],
+        spritePath: '/assets/sprites/objects/foglio_ricetta.png',
       },
       {
         id: 'videocassetta',
         memoryId: 'videocassetta',
         label: 'La videocassetta "Festa 12/7"',
         position: [-1.5, 1, -1.5],
+        spritePath: '/assets/sprites/objects/videocassetta.png',
       },
     ],
     npcs: [
@@ -93,12 +97,14 @@ export const ROOMS = {
         memoryId: 'diario_costanza',
         label: 'Il diario sul comodino',
         position: [1.5, 1, -1],
+        spritePath: '/assets/sprites/objects/diario_costanza.png',
       },
       {
         id: 'disegno_parete',
         memoryId: 'disegno_parete',
         label: 'Il disegno sulla parete',
         position: [-1.5, 1.4, -2],
+        spritePath: '/assets/sprites/objects/disegno_parete.png',
       },
     ],
     npcs: [],
@@ -119,12 +125,14 @@ export const ROOMS = {
         memoryId: 'poltrona_babbo',
         label: 'La poltrona di Renzo',
         position: [-2, 1, 1],
+        spritePath: '/assets/sprites/objects/poltrona_babbo.png',
       },
       {
         id: 'radio_lucio_dalla',
         memoryId: 'radio_lucio_dalla',
         label: 'La radio a transistor',
         position: [2, 1, -1],
+        spritePath: '/assets/sprites/objects/radio_lucio_dalla.png',
       },
     ],
     npcs: [
@@ -151,21 +159,26 @@ export const ROOMS = {
         memoryId: 'lettera_dottore',
         label: 'La lettera mai spedita',
         position: [1.5, 1, -1],
+        spritePath: '/assets/sprites/objects/lettera_dottore.png',
       },
       {
         id: 'scatola_polaroid',
         memoryId: 'scatola_polaroid',
         label: 'La scatola di Polaroid',
         position: [-1.5, 1, -0.5],
+        spritePath: '/assets/sprites/objects/scatola_polaroid.png',
       },
       {
         id: 'diario_alternativo',
         memoryId: 'diario_alternativo',
         label: "L'asse del pavimento sollevata",
         position: [0, 0.3, -1.8],
-        // Only examinable once `lettera_dottore` has been read — the
-        // InteractionSystem (next step) should check state.isMemoryCollected()
-        // for this id before allowing the click to register.
+        // No spritePath yet — diario_alternativo.png is missing from
+        // public/assets/sprites/objects/. Falls back to the placeholder
+        // sphere marker automatically; add spritePath here once the PNG
+        // exists, no other code changes needed.
+        // Only examinable once `lettera_dottore` has been read — enforced
+        // by main.js's 'interact' handler via state.isMemoryCollected().
         requiresMemory: 'lettera_dottore',
       },
     ],
@@ -187,12 +200,14 @@ export const ROOMS = {
         memoryId: 'bancone_osteria',
         label: 'Il bancone di legno',
         position: [-2, 1, 0],
+        spritePath: '/assets/sprites/objects/bancone_osteria.png',
       },
       {
         id: 'specchio_incrinato',
         memoryId: 'specchio_incrinato',
         label: 'Lo specchio incrinato',
         position: [2.5, 1.5, -1.5],
+        spritePath: '/assets/sprites/objects/specchio_incrinato.png',
       },
     ],
     npcs: [],
@@ -219,6 +234,7 @@ export const ROOMS = {
         memoryId: 'crollo_pozzo_argine',
         label: "Il vecchio molo sull'argine",
         position: [0, 0.5, -3],
+        spritePath: '/assets/sprites/objects/crollo_pozzo_argine.png',
       },
     ],
     npcs: [],

@@ -1,4 +1,6 @@
 import { getMemory } from '../game/memories.js';
+import { getStage } from '../game/state.js';
+import { injectGlitchStyles } from '../engine/corruption.js';
 
 /**
  * memoryModal.js — the overlay that shows a memory's text when the
@@ -12,6 +14,7 @@ import { getMemory } from '../game/memories.js';
  * show(), independent of whether the memory was new or already known.
  */
 export function initMemoryModal() {
+  injectGlitchStyles(); // idempotent — safe even if main.js already called it
   const overlay = document.createElement('div');
   overlay.style.cssText = `
     position: fixed; inset: 0; z-index: 20;
@@ -74,6 +77,9 @@ export function initMemoryModal() {
 
     titleEl.textContent = memory.label;
     textEl.textContent = memory.text;
+    // Late-stage memories read as more fractured — same glitch class the
+    // prompt uses, shared via engine/corruption.js so both jitter identically.
+    textEl.classList.toggle('glitch-text', getStage() >= 3);
     overlay.style.display = 'flex';
     document.addEventListener('keydown', onKeyDown);
   }
