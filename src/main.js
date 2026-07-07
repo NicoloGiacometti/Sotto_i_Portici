@@ -70,7 +70,6 @@ const billboards = [placeholderNPC];
 // --- First-person movement (WASD + pointer-lock mouse look) -----------------
 const move = { forward: false, back: false, left: false, right: false };
 const velocity = new THREE.Vector3();
-const direction = new THREE.Vector3();
 let yaw = 0;
 let pitch = 0;
 
@@ -118,20 +117,29 @@ function animate() {
   camera.rotation.y = yaw;
   camera.rotation.x = pitch;
 
-  direction.set(0, 0, 0);
-  if (move.forward) direction.z -= 1;
-  if (move.back) direction.z += 1;
-  if (move.left) direction.x -= 1;
-  if (move.right) direction.x += 1;
-  direction.normalize();
+  // inputForward: +1 = W (walk forward), -1 = S (walk backward)
+  // inputRight:   +1 = D (strafe right),  -1 = A (strafe left)
+  // Mouse is the ONLY thing that changes yaw/pitch (handled above); WASD only
+  // ever translates the camera position, never rotates the view.
+  let inputForward = 0;
+  let inputRight = 0;
+  if (move.forward) inputForward += 1;
+  if (move.back) inputForward -= 1;
+  if (move.right) inputRight += 1;
+  if (move.left) inputRight -= 1;
 
-  // Move relative to where the camera is facing (yaw only, so looking up/down
-  // doesn't fly the player into the floor or ceiling).
-  const forward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
-  const right = new THREE.Vector3(Math.sin(yaw + Math.PI / 2), 0, Math.cos(yaw + Math.PI / 2));
+  // Derive forward/right directly from the camera's actual world orientation
+  // instead of hand-rolled trig, so the sign always matches what the camera
+  // is really looking at (this is what was inverted before).
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  forward.y = 0;
+  forward.normalize();
+  const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+
   velocity.set(0, 0, 0);
-  velocity.addScaledVector(forward, -direction.z * walkSpeed * dt);
-  velocity.addScaledVector(right, direction.x * walkSpeed * dt);
+  velocity.addScaledVector(forward, inputForward * walkSpeed * dt);
+  velocity.addScaledVector(right, inputRight * walkSpeed * dt);
   camera.position.add(velocity);
 
   for (const b of billboards) b.update(camera);
